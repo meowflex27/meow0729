@@ -1,4 +1,4 @@
-const axios = require('axios');
+import axios from 'axios';
 
 function extractSubjectId(html, movieTitle) {
   const escapedTitle = movieTitle.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -23,7 +23,7 @@ function extractDetailPathFromHtml(html, subjectId, movieTitle) {
   return lastMatch;
 }
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   const { tmdbId } = req.query;
   const TMDB_API_KEY = process.env.TMDB_API_KEY || '0c174d60d0fde85c3522abc550ce0b4e';
 
@@ -40,20 +40,19 @@ module.exports = async (req, res) => {
     const searchUrl = `https://moviebox.ph/web/searchResult?keyword=${encodeURIComponent(searchKeyword)}`;
 
     const searchResp = await axios.get(searchUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+      headers: { 'User-Agent': 'Mozilla/5.0' }
     });
-    const html = searchResp.data;
 
+    const html = searchResp.data;
     const subjectId = extractSubjectId(html, title);
     if (!subjectId) {
-      return res.status(404).json({ success: false, error: 'subjectId not found in HTML' });
+      return res.status(404).json({ success: false, error: 'subjectId not found' });
     }
 
     const detailPath = extractDetailPathFromHtml(html, subjectId, title);
     const detailsUrl = detailPath ? `https://moviebox.ph/movies/${detailPath}?id=${subjectId}` : null;
 
     const downloadUrl = `https://moviebox.ph/wefeed-h5-bff/web/subject/download?subjectId=${subjectId}&se=0&ep=0`;
-
     const downloadResp = await axios.get(downloadUrl, {
       headers: {
         'accept': 'application/json',
@@ -71,7 +70,7 @@ module.exports = async (req, res) => {
     });
 
   } catch (err) {
-    console.error('Server error:', err.message);
-    res.status(500).json({ success: false, error: err.message });
+    console.error('Error in movie handler:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
   }
-};
+}
